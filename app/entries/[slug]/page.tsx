@@ -23,18 +23,12 @@ import {
   formatPublishedDate,
   getComments,
   getPost,
-  getPosts,
 } from "../db";
 import { PAGE_WATERMARK, PAGE_BLURB, MOOD_BADGE_STYLES } from "../data";
 import CommentForm from "./CommentForm";
 
 interface PostPageProps {
   params: Promise<{ slug: string }>;
-}
-
-export async function generateStaticParams() {
-  const posts = await getPosts();
-  return posts.map((post) => ({ slug: post.id }));
 }
 
 export async function generateMetadata({
