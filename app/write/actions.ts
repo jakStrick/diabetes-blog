@@ -15,8 +15,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { ROUTES } from "@/components/SiteRoutes";
-import { createPost } from "../entries/db";
+import { createPost, deletePost } from "../entries/db";
 import {
   checkPassphrase,
   clearSessionCookie,
@@ -105,4 +106,24 @@ export async function publishEntry(
   const post = await createPost({ title, moodLabel, moodRating, excerpt, body });
 
   redirect(`${ROUTES.entries}/${post.id}`);
+}
+
+export async function deleteEntry(formData: FormData): Promise<void> {
+  if (!(await isAuthenticated())) {
+    redirect(ROUTES.write);
+  }
+
+  const postId = String(formData.get("postId") ?? "").trim();
+  if (!postId) {
+    redirect(ROUTES.write);
+  }
+
+  await deletePost(postId);
+
+  revalidatePath(ROUTES.write);
+  revalidatePath(ROUTES.entries);
+  revalidatePath(`${ROUTES.entries}/${postId}`);
+  revalidatePath(ROUTES.home);
+
+  redirect(ROUTES.write);
 }

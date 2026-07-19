@@ -15,11 +15,20 @@
 
 import type { Metadata } from "next";
 import PageHero from "@/components/PageHero";
+import { getPosts, formatPublishedDate } from "../entries/db";
 import { isAuthenticated } from "./auth";
 import { logout } from "./actions";
-import { PAGE_EYEBROW, PAGE_HEADING, PAGE_INTRO, PAGE_WATERMARK, PAGE_BLURB } from "./data";
+import {
+  PAGE_EYEBROW,
+  PAGE_HEADING,
+  PAGE_INTRO,
+  PAGE_WATERMARK,
+  PAGE_BLURB,
+  MANAGE_ENTRIES_HEADING,
+} from "./data";
 import LoginForm from "./LoginForm";
 import EntryForm from "./EntryForm";
+import ManageEntries from "./ManageEntries";
 
 export const metadata: Metadata = {
   title: "Write | The Daily Count",
@@ -28,6 +37,13 @@ export const metadata: Metadata = {
 
 export default async function WritePage() {
   const authed = await isAuthenticated();
+  const posts = authed
+    ? (await getPosts()).map((post) => ({
+        id: post.id,
+        title: post.title,
+        displayDate: formatPublishedDate(post.publishedAt),
+      }))
+    : [];
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800">
@@ -57,6 +73,11 @@ export default async function WritePage() {
               </button>
             </form>
             <EntryForm />
+
+            <h2 className="mt-11 mb-4 font-serif text-xl font-semibold text-stone-800">
+              {MANAGE_ENTRIES_HEADING}
+            </h2>
+            <ManageEntries posts={posts} />
           </>
         ) : (
           <LoginForm />

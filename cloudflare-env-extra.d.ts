@@ -18,6 +18,9 @@
 declare global {
   interface CloudflareEnv {
     WRITE_PASSPHRASE: string;
+    RESEND_API_KEY: string;
+    RESEND_FROM_EMAIL: string;
+    RESEND_TO_EMAIL: string;
   }
 }
 

@@ -19,8 +19,21 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { addComment } from "../db";
+import { headers } from "next/headers";
+import { addComment, getPost } from "../db";
+import { notifyNewComment } from "../notify";
 import { ROUTES } from "@/components/SiteRoutes";
+
+const LOCAL_HOSTNAME_PATTERN = /^(localhost|127\.0\.0\.1)/;
+
+async function buildAbsolutePostUrl(postId: string): Promise<string> {
+  const headersList = await headers();
+  const host = headersList.get("host");
+  const path = `${ROUTES.entries}/${postId}`;
+  if (!host) return path;
+  const protocol = LOCAL_HOSTNAME_PATTERN.test(host) ? "http" : "https";
+  return `${protocol}://${host}${path}`;
+}
 
 export interface CommentFormState {
   error: string | null;
@@ -55,6 +68,20 @@ export async function submitComment(
 
   await addComment(postId, authorName, body);
   revalidatePath(`${ROUTES.entries}/${postId}`);
+
+  try {
+    const post = await getPost(postId);
+    await notifyNewComment({
+      postTitle: post?.title ?? postId,
+      postUrl: await buildAbsolutePostUrl(postId),
+      authorName,
+      body,
+    });
+  } catch (error) {
+    // A failed notification must never block or roll back the comment
+    // itself, the comment already succeeded above.
+    console.error("Failed to send comment notification email", error);
+  }
 
   return { error: null, success: true };
 }

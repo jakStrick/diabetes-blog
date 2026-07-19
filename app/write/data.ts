@@ -21,3 +21,10 @@ export const PAGE_INTRO =
 export const PAGE_WATERMARK = "WRITE";
 
 export const PAGE_BLURB = "Publish a new journal entry.";
+
+export const MANAGE_ENTRIES_HEADING = "Existing entries";
+
+export const MANAGE_ENTRIES_EMPTY_TEXT = "No entries yet.";
+
+export const DELETE_CONFIRM_TEXT =
+  "Delete this entry and all of its comments? This can't be undone.";

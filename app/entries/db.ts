@@ -194,3 +194,15 @@ export async function createPost(input: NewPost): Promise<BlogPost> {
     body: input.body,
   };
 }
+
+/**
+ * Comments have no ON DELETE CASCADE (see migrations/0001_init.sql), so
+ * both statements run as one atomic batch rather than two separate calls.
+ */
+export async function deletePost(id: string): Promise<void> {
+  const db = await getDb();
+  await db.batch([
+    db.prepare("DELETE FROM comments WHERE post_id = ?").bind(id),
+    db.prepare("DELETE FROM posts WHERE id = ?").bind(id),
+  ]);
+}
