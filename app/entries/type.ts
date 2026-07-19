@@ -28,3 +28,11 @@ export interface Comment {
   body: string;
   createdAt: string;
 }
+
+/**
+ * A comment awaiting owner approval, includes the parent post's title so
+ * the moderation queue on /write can show context without a second fetch.
+ */
+export interface PendingComment extends Comment {
+  postTitle: string;
+}

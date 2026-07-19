@@ -24,6 +24,7 @@ import {
   getComments,
   getPost,
 } from "../db";
+import { getTurnstileSiteKey } from "../turnstile";
 import { PAGE_WATERMARK, PAGE_BLURB, MOOD_BADGE_STYLES } from "../data";
 import CommentForm from "./CommentForm";
 
@@ -55,7 +56,10 @@ export default async function PostPage({ params }: PostPageProps) {
     notFound();
   }
 
-  const comments = await getComments(post.id);
+  const [comments, turnstileSiteKey] = await Promise.all([
+    getComments(post.id),
+    getTurnstileSiteKey(),
+  ]);
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800">
@@ -134,7 +138,7 @@ export default async function PostPage({ params }: PostPageProps) {
             ))}
           </div>
 
-          <CommentForm postId={post.id} />
+          <CommentForm postId={post.id} turnstileSiteKey={turnstileSiteKey} />
         </section>
       </main>
 

@@ -28,3 +28,10 @@ export const MANAGE_ENTRIES_EMPTY_TEXT = "No entries yet.";
 
 export const DELETE_CONFIRM_TEXT =
   "Delete this entry and all of its comments? This can't be undone.";
+
+export const PENDING_COMMENTS_HEADING = "Pending comments";
+
+export const PENDING_COMMENTS_EMPTY_TEXT = "No comments waiting for review.";
+
+export const REJECT_COMMENT_CONFIRM_TEXT =
+  "Reject and delete this comment? This can't be undone.";

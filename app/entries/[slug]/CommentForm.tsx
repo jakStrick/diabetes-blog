@@ -4,7 +4,10 @@
  * =============================================================================
  *
  *  Description: Comment submission form for a single blog post, calls the
- *               submitComment Server Action bound to this post's id.
+ *               submitComment Server Action bound to this post's id. Gated
+ *               by a Cloudflare Turnstile widget, verified server-side in
+ *               the action, and the comment is held for owner approval
+ *               before it appears publicly (see ../db.ts getPendingComments).
  *
  *  Created by:   David Strickland
  *  Company:      DCSS Web Development LLC
@@ -15,15 +18,20 @@
 "use client";
 
 import { useActionState } from "react";
+import Script from "next/script";
 import { submitComment, type CommentFormState } from "./actions";
 
 const INITIAL_STATE: CommentFormState = { error: null, success: false };
 
 interface CommentFormProps {
   postId: string;
+  turnstileSiteKey: string;
 }
 
-export default function CommentForm({ postId }: CommentFormProps) {
+export default function CommentForm({
+  postId,
+  turnstileSiteKey,
+}: CommentFormProps) {
   const [state, formAction, isPending] = useActionState(
     submitComment.bind(null, postId),
     INITIAL_STATE,
@@ -31,6 +39,12 @@ export default function CommentForm({ postId }: CommentFormProps) {
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
+      <Script
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+        strategy="afterInteractive"
+        async
+        defer
+      />
       <div>
         <label
           htmlFor="authorName"
@@ -65,6 +79,8 @@ export default function CommentForm({ postId }: CommentFormProps) {
         />
       </div>
 
+      <div className="cf-turnstile" data-sitekey={turnstileSiteKey} />
+
       {state.error && (
         <p role="alert" className="text-sm font-semibold text-red-700">
           {state.error}
@@ -72,7 +88,8 @@ export default function CommentForm({ postId }: CommentFormProps) {
       )}
       {state.success && (
         <p role="status" className="text-sm font-semibold text-emerald-700">
-          Comment posted.
+          Thanks, your comment is awaiting approval and will appear once
+          reviewed.
         </p>
       )}
 

@@ -21,6 +21,8 @@ declare global {
     RESEND_API_KEY: string;
     RESEND_FROM_EMAIL: string;
     RESEND_TO_EMAIL: string;
+    TURNSTILE_SITE_KEY: string;
+    TURNSTILE_SECRET_KEY: string;
   }
 }
 

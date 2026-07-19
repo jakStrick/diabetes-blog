@@ -14,7 +14,7 @@
  */
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import type { BlogPost, Comment } from "./type";
+import type { BlogPost, Comment, PendingComment } from "./type";
 
 interface PostRow {
   id: string;
@@ -32,6 +32,7 @@ interface CommentRow {
   author_name: string;
   body: string;
   created_at: string;
+  approved: number;
 }
 
 function toBlogPost(row: PostRow): BlogPost {
@@ -102,19 +103,26 @@ export async function getPost(id: string): Promise<BlogPost | null> {
   return row ? toBlogPost(row) : null;
 }
 
+// Public-facing: only comments the owner has approved from /write.
 export async function getComments(postId: string): Promise<Comment[]> {
   const db = await getDb();
   const { results } = await db
-    .prepare("SELECT * FROM comments WHERE post_id = ? ORDER BY created_at ASC")
+    .prepare(
+      "SELECT * FROM comments WHERE post_id = ? AND approved = 1 ORDER BY created_at ASC",
+    )
     .bind(postId)
     .all<CommentRow>();
   return results.map(toComment);
 }
 
+// Public-facing counts, mirrors getComments' approved-only filter so the
+// number shown on entry cards matches what a visitor can actually see.
 export async function getCommentCounts(): Promise<Record<string, number>> {
   const db = await getDb();
   const { results } = await db
-    .prepare("SELECT post_id, COUNT(*) as count FROM comments GROUP BY post_id")
+    .prepare(
+      "SELECT post_id, COUNT(*) as count FROM comments WHERE approved = 1 GROUP BY post_id",
+    )
     .all<{ post_id: string; count: number }>();
 
   const counts: Record<string, number> = {};
@@ -124,6 +132,24 @@ export async function getCommentCounts(): Promise<Record<string, number>> {
   return counts;
 }
 
+export async function getPendingComments(): Promise<PendingComment[]> {
+  const db = await getDb();
+  const { results } = await db
+    .prepare(
+      `SELECT c.*, p.title AS post_title FROM comments c
+       JOIN posts p ON p.id = c.post_id
+       WHERE c.approved = 0
+       ORDER BY c.created_at ASC`,
+    )
+    .all<CommentRow & { post_title: string }>();
+  return results.map((row) => ({ ...toComment(row), postTitle: row.post_title }));
+}
+
+/**
+ * New comments start unapproved (approved defaults to 0), see
+ * migrations/0002_comment_moderation.sql, and only appear publicly once
+ * approveComment is called from the /write moderation queue.
+ */
 export async function addComment(
   postId: string,
   authorName: string,
@@ -136,6 +162,16 @@ export async function addComment(
     )
     .bind(postId, authorName, body)
     .run();
+}
+
+export async function approveComment(id: number): Promise<void> {
+  const db = await getDb();
+  await db.prepare("UPDATE comments SET approved = 1 WHERE id = ?").bind(id).run();
+}
+
+export async function rejectComment(id: number): Promise<void> {
+  const db = await getDb();
+  await db.prepare("DELETE FROM comments WHERE id = ?").bind(id).run();
 }
 
 function slugify(title: string): string {

@@ -4,11 +4,9 @@
  * =============================================================================
  *
  *  Description: Server Action for submitting a comment on a blog post.
- *
- *  NOTE: there is no auth, spam protection, or moderation queue here yet,
- *  this is an open, unmoderated public form. Anyone can post as anyone.
- *  Treat this as a functional first pass, not launch-ready for a public
- *  audience, moderation is a deliberate follow-up, not an oversight.
+ *               Gated by Cloudflare Turnstile (bot check) and held for owner
+ *               approval before it appears publicly, see approvePendingComment
+ *               in ../../write/actions.ts and getPendingComments in ../db.ts.
  *
  *  Created by:   David Strickland
  *  Company:      DCSS Web Development LLC
@@ -22,14 +20,14 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { addComment, getPost } from "../db";
 import { notifyNewComment } from "../notify";
+import { verifyTurnstileToken } from "../turnstile";
 import { ROUTES } from "@/components/SiteRoutes";
 
 const LOCAL_HOSTNAME_PATTERN = /^(localhost|127\.0\.0\.1)/;
 
-async function buildAbsolutePostUrl(postId: string): Promise<string> {
+async function buildAbsoluteUrl(path: string): Promise<string> {
   const headersList = await headers();
   const host = headersList.get("host");
-  const path = `${ROUTES.entries}/${postId}`;
   if (!host) return path;
   const protocol = LOCAL_HOSTNAME_PATTERN.test(host) ? "http" : "https";
   return `${protocol}://${host}${path}`;
@@ -66,16 +64,29 @@ export async function submitComment(
     };
   }
 
+  const turnstileToken = String(formData.get("cf-turnstile-response") ?? "");
+  const headersList = await headers();
+  const remoteIp = headersList.get("cf-connecting-ip");
+  const humanVerified = await verifyTurnstileToken(turnstileToken, remoteIp);
+  if (!humanVerified) {
+    return {
+      error: "Verification failed, please try the challenge again.",
+      success: false,
+    };
+  }
+
   await addComment(postId, authorName, body);
   revalidatePath(`${ROUTES.entries}/${postId}`);
 
   try {
     const post = await getPost(postId);
+    const postUrl = await buildAbsoluteUrl(`${ROUTES.entries}/${postId}`);
+    const writeUrl = await buildAbsoluteUrl(ROUTES.write);
     await notifyNewComment({
       postTitle: post?.title ?? postId,
-      postUrl: await buildAbsolutePostUrl(postId),
+      postUrl,
       authorName,
-      body,
+      body: `${body}\n\nAwaiting your approval, read the entry at ${postUrl} or review and approve/reject at ${writeUrl}.`,
     });
   } catch (error) {
     // A failed notification must never block or roll back the comment

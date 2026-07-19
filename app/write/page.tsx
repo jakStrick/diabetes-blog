@@ -15,7 +15,12 @@
 
 import type { Metadata } from "next";
 import PageHero from "@/components/PageHero";
-import { getPosts, formatPublishedDate } from "../entries/db";
+import {
+  getPosts,
+  formatPublishedDate,
+  getPendingComments,
+  formatCommentDate,
+} from "../entries/db";
 import { isAuthenticated } from "./auth";
 import { logout } from "./actions";
 import {
@@ -25,10 +30,12 @@ import {
   PAGE_WATERMARK,
   PAGE_BLURB,
   MANAGE_ENTRIES_HEADING,
+  PENDING_COMMENTS_HEADING,
 } from "./data";
 import LoginForm from "./LoginForm";
 import EntryForm from "./EntryForm";
 import ManageEntries from "./ManageEntries";
+import ModerateComments from "./ModerateComments";
 
 export const metadata: Metadata = {
   title: "Write | The Daily Count",
@@ -42,6 +49,16 @@ export default async function WritePage() {
         id: post.id,
         title: post.title,
         displayDate: formatPublishedDate(post.publishedAt),
+      }))
+    : [];
+  const pendingComments = authed
+    ? (await getPendingComments()).map((comment) => ({
+        id: comment.id,
+        postId: comment.postId,
+        postTitle: comment.postTitle,
+        authorName: comment.authorName,
+        body: comment.body,
+        displayDate: formatCommentDate(comment.createdAt),
       }))
     : [];
 
@@ -78,6 +95,11 @@ export default async function WritePage() {
               {MANAGE_ENTRIES_HEADING}
             </h2>
             <ManageEntries posts={posts} />
+
+            <h2 className="mt-11 mb-4 font-serif text-xl font-semibold text-stone-800">
+              {PENDING_COMMENTS_HEADING}
+            </h2>
+            <ModerateComments comments={pendingComments} />
           </>
         ) : (
           <LoginForm />

@@ -17,7 +17,12 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { ROUTES } from "@/components/SiteRoutes";
-import { createPost, deletePost } from "../entries/db";
+import {
+  approveComment,
+  createPost,
+  deletePost,
+  rejectComment,
+} from "../entries/db";
 import {
   checkPassphrase,
   clearSessionCookie,
@@ -124,6 +129,46 @@ export async function deleteEntry(formData: FormData): Promise<void> {
   revalidatePath(ROUTES.entries);
   revalidatePath(`${ROUTES.entries}/${postId}`);
   revalidatePath(ROUTES.home);
+
+  redirect(ROUTES.write);
+}
+
+export async function approvePendingComment(formData: FormData): Promise<void> {
+  if (!(await isAuthenticated())) {
+    redirect(ROUTES.write);
+  }
+
+  const commentId = Number(formData.get("commentId"));
+  const postId = String(formData.get("postId") ?? "").trim();
+  if (!Number.isInteger(commentId)) {
+    redirect(ROUTES.write);
+  }
+
+  await approveComment(commentId);
+
+  revalidatePath(ROUTES.write);
+  revalidatePath(ROUTES.entries);
+  revalidatePath(ROUTES.home);
+  if (postId) {
+    revalidatePath(`${ROUTES.entries}/${postId}`);
+  }
+
+  redirect(ROUTES.write);
+}
+
+export async function rejectPendingComment(formData: FormData): Promise<void> {
+  if (!(await isAuthenticated())) {
+    redirect(ROUTES.write);
+  }
+
+  const commentId = Number(formData.get("commentId"));
+  if (!Number.isInteger(commentId)) {
+    redirect(ROUTES.write);
+  }
+
+  await rejectComment(commentId);
+
+  revalidatePath(ROUTES.write);
 
   redirect(ROUTES.write);
 }

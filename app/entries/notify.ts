@@ -41,7 +41,7 @@ export async function notifyNewComment(
     body: JSON.stringify({
       from: env.RESEND_FROM_EMAIL,
       to: env.RESEND_TO_EMAIL,
-      subject: `New comment on "${input.postTitle}"`,
+      subject: `New comment awaiting approval on "${input.postTitle}"`,
       text: `${input.authorName} commented on "${input.postTitle}":\n\n${input.body}\n\n${input.postUrl}`,
     }),
   });
