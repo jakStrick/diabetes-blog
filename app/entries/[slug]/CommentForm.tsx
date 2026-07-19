@@ -9,6 +9,14 @@
  *               the action, and the comment is held for owner approval
  *               before it appears publicly (see ../db.ts getPendingComments).
  *
+ *               Turnstile is rendered explicitly (turnstile.render(), script
+ *               loaded with ?render=explicit) rather than via its implicit
+ *               "cf-turnstile" class auto-scan. The auto-scan only runs once
+ *               when the script itself first loads, so on a client-side
+ *               Next.js navigation to a post the widget never appeared,
+ *               a full page reload was the only thing that re-triggered it.
+ *               Explicit rendering re-renders on every mount instead.
+ *
  *  Created by:   David Strickland
  *  Company:      DCSS Web Development LLC
  *  Created on:   2026-07-17
@@ -17,11 +25,25 @@
 
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import Script from "next/script";
 import { submitComment, type CommentFormState } from "./actions";
 
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (
+        container: HTMLElement,
+        options: { sitekey: string },
+      ) => string;
+      reset: (widgetId: string) => void;
+      remove: (widgetId: string) => void;
+    };
+  }
+}
+
 const INITIAL_STATE: CommentFormState = { error: null, success: false };
+const TURNSTILE_READY_POLL_MS = 100;
 
 interface CommentFormProps {
   postId: string;
@@ -36,14 +58,54 @@ export default function CommentForm({
     submitComment.bind(null, postId),
     INITIAL_STATE,
   );
+  const turnstileContainerRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let pollId: ReturnType<typeof setInterval> | undefined;
+
+    function renderWidget() {
+      if (cancelled || widgetIdRef.current) return;
+      const container = turnstileContainerRef.current;
+      if (!container || !window.turnstile) return;
+      widgetIdRef.current = window.turnstile.render(container, {
+        sitekey: turnstileSiteKey,
+      });
+    }
+
+    if (window.turnstile) {
+      renderWidget();
+    } else {
+      pollId = setInterval(() => {
+        if (window.turnstile) {
+          clearInterval(pollId);
+          renderWidget();
+        }
+      }, TURNSTILE_READY_POLL_MS);
+    }
+
+    return () => {
+      cancelled = true;
+      if (pollId) clearInterval(pollId);
+      if (widgetIdRef.current && window.turnstile) {
+        window.turnstile.remove(widgetIdRef.current);
+      }
+      widgetIdRef.current = null;
+    };
+  }, [turnstileSiteKey]);
+
+  useEffect(() => {
+    if (state.success && widgetIdRef.current && window.turnstile) {
+      window.turnstile.reset(widgetIdRef.current);
+    }
+  }, [state.success]);
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
       <Script
-        src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
         strategy="afterInteractive"
-        async
-        defer
       />
       <div>
         <label
@@ -79,7 +141,7 @@ export default function CommentForm({
         />
       </div>
 
-      <div className="cf-turnstile" data-sitekey={turnstileSiteKey} />
+      <div ref={turnstileContainerRef} />
 
       {state.error && (
         <p role="alert" className="text-sm font-semibold text-red-700">
