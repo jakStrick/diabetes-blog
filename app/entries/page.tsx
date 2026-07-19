@@ -25,6 +25,10 @@ import {
 } from "./data";
 import EntryCard from "./EntryCard";
 
+// Reads live D1 data (posts, comment counts), must render per-request rather
+// than being statically optimized at build time.
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Entries | The Daily Count",
   description: "Day to day journal entries about living with diabetes.",

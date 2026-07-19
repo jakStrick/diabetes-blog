@@ -29,6 +29,10 @@ import {
   NEWSLETTER_BODY,
 } from "./data";
 
+// Reads live D1 data (posts, comment counts), must render per-request rather
+// than being statically optimized at build time.
+export const dynamic = "force-dynamic";
+
 const RECENT_ENTRIES_COUNT = 3;
 
 export default async function LandingPage() {
